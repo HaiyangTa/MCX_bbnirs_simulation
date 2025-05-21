@@ -103,3 +103,26 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 1
     return intensity_d, unit
 
 
+def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
+    intensity_d, unit = mcx_simulation(ua, us, g, n, distance, tend, devf, nphoton)
+    fs = 1/unit
+    fft_result = np.fft.fft(intensity_d) # a+bj
+    freqs = np.fft.fftfreq(len(intensity_d), 1/fs)
+    return fft_result, freqs
+
+# give the target frequency to extract, 
+# return uac, udc and phase from fft results.  
+def extract_freq(target_freq, freqs, fft_result):
+    index = np.argmin(np.abs(freqs - target_freq))
+    if freqs[index] - target_freq != 0: 
+      print('difference = ', freqs[index] - target_freq)
+      print('closest frequency index:', index)
+    udc = np.real(fft_result[0]) / len(fft_result)
+    uac = np.abs(fft_result[index]) / (len(fft_result)/2)
+    phase = np.angle(fft_result[index])
+    return uac, udc, phase
+
+
+
+
+
