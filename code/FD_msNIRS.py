@@ -79,6 +79,8 @@ def get_intensity_dynamic(cfg, res):
     return sum_dref_per_time
 
 
+
+
 def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
     """
     Wrapper function to run MCX simulation and extract time-resolved intensity.
@@ -105,9 +107,10 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 1
 
 def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
     intensity_d, unit = mcx_simulation(ua, us, g, n, distance, tend, devf, nphoton)
-    fs = 1/unit
+    # adjust to weight/bin: 
+    intensity_d = np.array(intensity_d) * nphoton * (tend/devf)
     fft_result = np.fft.fft(intensity_d) # a+bj
-    freqs = np.fft.fftfreq(len(intensity_d), 1/fs)
+    freqs = np.fft.fftfreq(intensity_d.shape[0], unit)
     return fft_result, freqs
 
 # give the target frequency to extract, 
