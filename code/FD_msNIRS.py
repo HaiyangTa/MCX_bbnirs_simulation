@@ -61,7 +61,7 @@ def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
     #print('detp keys:', res['detp'].keys())
     return res, cfg
 
-    
+# sum_dref_per_time = x weights/mm-1/photon
 def get_intensity_dynamic(cfg, res):
     # get mask. 
     det_x, det_y, det_z, det_r = cfg['detpos'][0]
@@ -70,13 +70,13 @@ def get_intensity_dynamic(cfg, res):
     det_mask = (x_grid - det_x)**2 + (y_grid - det_y)**2 <= det_r**2
     
     # get intensity dynamic
-    mean_dref_per_time = []
+    sum_dref_per_time = []
     # loop each t 
     for t in range(res['dref'].shape[3]):
         dref_slice = res['dref'][:, :, 0, t]
-        mean_val = np.mean(dref_slice[det_mask])
-        mean_dref_per_time.append(mean_val)
-    return mean_dref_per_time
+        sum_val = np.sum(dref_slice[det_mask])
+        sum_dref_per_time.append(sum_val)
+    return sum_dref_per_time
 
 
 def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
