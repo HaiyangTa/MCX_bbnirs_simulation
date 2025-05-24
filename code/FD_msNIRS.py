@@ -56,9 +56,7 @@ def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
 
     # Run the simulation
     res = pmcx.mcxlab(cfg)
-    #print(res['stat'])
-    #print("Result keys:", list(res.keys()))
-    #print('detp keys:', res['detp'].keys())
+
     return res, cfg
 
 # sum_dref_per_time = x weights/mm-1/photon
@@ -118,15 +116,24 @@ def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
 
 # return uac, udc and phase from fft results.  
 def extract_freq(target_freq, TPSF, tend, devf):
-    
-  # proposed method: 
     t = np.linspace(0, tend, devf)
-    omega = 2 * np.pi * target_freq # 2*pi*f 
+    tau = np.trapz(t * TPSF, t) / np.trapz(TPSF, t)  # Center of mass
+  # proposed method: 
+    
+    omega = 2 * np.pi * target_freq # 2*pi*f
     I_f = np.trapz(TPSF * np.exp(-1j * omega * t), t)  # Complex integral
     amplitude = np.abs(I_f)
-    phase_deg = np.angle(I_f, deg=True)  # Phase in degrees
+    phase = np.angle(I_f, deg=False)  # Phase in degrees
     udc = np.trapz(TPSF, t) # U_dc
-    return amplitude, udc, phase_deg
+    # new way to get phase: 
+    phase2 =  -2 * np.pi * target_freq * tau  # in radians
+    left = phase2 // np.pi
+    if phase > 0 : 
+      phase = phase - 2* np.pi
+    #print(phase - phase2)
+    return amplitude, udc, phase, phase2
+
+    
 
 def extract_freq2(target_freq, freqs, fft_result, tend, devf):
     N = len(freqs)
