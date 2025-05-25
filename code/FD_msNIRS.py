@@ -116,34 +116,6 @@ def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
 
 # return uac, udc and phase from fft results.  
 def extract_freq(target_freq, TPSF, tend, devf):
-    
-    """
-    Extracts frequency-domain features from a time-domain TPSF signal.
-
-    Parameters:
-    -----------
-    target_freq : float
-        The modulation frequency (Hz) at which to compute amplitude and phase.
-    TPSF : array_like
-        The time-domain temporal point spread function (fluence vs. time).
-    tend : float
-        End time for the signal (seconds). Time range is [0, tend].
-    devf : int
-        Number of discrete time points to use in the integration.
-
-    Returns:
-    --------
-    amplitude : float
-        The amplitude (U_AC) of the complex projection at target_freq.
-    udc : float
-        The DC component (U_DC), computed as the area under TPSF.
-    phase : float
-        The wrapped phase angle (in radians) from the Fourier projection.
-    phase2 : float
-        The unwrapped phase (in radians) computed from estimated delay τ,
-        where τ is the mean arrival time of photons (center of mass).
-    """
-    
     t = np.linspace(0, tend, devf)
     tau = np.trapz(t * TPSF, t) / np.trapz(TPSF, t)  # Center of mass
   # proposed method: 
@@ -156,7 +128,7 @@ def extract_freq(target_freq, TPSF, tend, devf):
     # new way to get phase: 
     phase2 =  -2 * np.pi * target_freq * tau  # in radians
     left = phase2 // np.pi
-    if phase > 0 : 
+    if phase > 0 and phase2 < 0: 
       phase = phase - 2* np.pi
     #print(phase - phase2)
     return amplitude, udc, phase, phase2
