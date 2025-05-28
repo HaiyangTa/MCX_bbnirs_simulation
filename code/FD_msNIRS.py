@@ -9,7 +9,7 @@ c = 2.998e+10
 c = c / n # cm/s
 
 
-def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
+def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8, light_source = 'laser'):
     
     # define structure properties
     prop = np.array([
@@ -44,9 +44,6 @@ def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
           'unitinmm': 1,
           'autopilot': 1,
           'debuglevel': 'DP',
-
-          # Isotropic source:
-          'srctype': 'isotropic',
           #'tmod': mf,
     }
     cfg['issaveref']=1
@@ -54,6 +51,9 @@ def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
     cfg['issrcfrom0']=1
     cfg['maxdetphoton']=nphoton
     cfg['seed']= 999
+    if light_source == 'iso': 
+      cfg['srctype']='nphoton'
+
 
     # Run the simulation
     res = pmcx.mcxlab(cfg)
@@ -104,6 +104,14 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 1
     unit = tend / devf
     return intensity_d, unit
 
+# get the fft, freqs. 
+def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
+    intensity_d, unit = mcx_simulation(ua, us, g, n, distance, tend, devf, nphoton)
+    # adjust to weight/bin: 
+    intensity_d = np.array(intensity_d)
+    fft_result = np.fft.fft(intensity_d)
+    freqs = np.fft.fftfreq(intensity_d.shape[0], unit)
+    return fft_result, freqs
 
 
 # return uac, udc and phase from fft results.  
