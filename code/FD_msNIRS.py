@@ -100,7 +100,6 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 1
     res, cfg = run_mcx(ua, us, g, n, distance, tend, devf, nphoton)
     intensity_d = get_intensity_dynamic(cfg, res)
     t = np.linspace(0, tend, devf)
-    intensity_d /= np.trapz(intensity_d, t) # normalize the signal such that the AUC == 1. 
     unit = tend / devf
     return intensity_d, unit
 
@@ -108,8 +107,8 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 1
 def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
     intensity_d, unit = mcx_simulation(ua, us, g, n, distance, tend, devf, nphoton)
     # adjust to weight/bin: 
-    intensity_d = np.array(intensity_d) # * nphoton * (tend/devf)
-    fft_result = np.fft.fft(intensity_d) # a+bj
+    intensity_d = np.array(intensity_d)
+    fft_result = np.fft.fft(intensity_d)
     freqs = np.fft.fftfreq(intensity_d.shape[0], unit)
     return fft_result, freqs
 
@@ -119,11 +118,11 @@ def extract_freq(target_freq, TPSF, tend, devf):
     t = np.linspace(0, tend, devf)
     tau = np.trapz(t * TPSF, t) / np.trapz(TPSF, t)  # Center of mass
   # proposed method: 
-    
+
     omega = 2 * np.pi * target_freq # 2*pi*f
     I_f = np.trapz(TPSF * np.exp(-1j * omega * t), t)  # Complex integral
     amplitude = np.abs(I_f)
-    phase = np.angle(I_f, deg=False)  # Phase in degrees
+    phase = np.angle(I_f, deg=False)
     udc = np.trapz(TPSF, t) # U_dc
     # new way to get phase: 
     phase2 =  -2 * np.pi * target_freq * tau  # in radians
@@ -133,25 +132,6 @@ def extract_freq(target_freq, TPSF, tend, devf):
     #print(phase - phase2)
     return amplitude, udc, phase, phase2
 
-    
-
-def extract_freq2(target_freq, freqs, fft_result, tend, devf):
-    N = len(freqs)
-    dt = tend/ devf
-
-    # Find the closest frequency index
-    index = np.argmin(np.abs(freqs - target_freq))
-
-    # DC component (0 Hz)
-    udc = np.real(fft_result[0]) / N
-
-    # Amplitude at target frequency (normalize for one-sided spectrum)
-    uac = np.abs(fft_result[index]) / (N / 2)
-    
-    # Phase at target frequency in degrees
-    phase_deg = np.angle(fft_result[index], deg=True)
-
-    return uac, udc, phase_deg
 
 
 
