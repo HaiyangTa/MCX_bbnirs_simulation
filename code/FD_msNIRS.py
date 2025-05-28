@@ -53,6 +53,7 @@ def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
     cfg['issavedet']=1
     cfg['issrcfrom0']=1
     cfg['maxdetphoton']=nphoton
+    cfg['seed']= 999
 
     # Run the simulation
     res = pmcx.mcxlab(cfg)
@@ -117,7 +118,6 @@ def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, n
 def extract_freq(target_freq, TPSF, tend, devf):
     t = np.linspace(0, tend, devf)
     tau = np.trapz(t * TPSF, t) / np.trapz(TPSF, t)  # Center of mass
-  # proposed method: 
 
     omega = 2 * np.pi * target_freq # 2*pi*f
     I_f = np.trapz(TPSF * np.exp(-1j * omega * t), t)  # Complex integral
