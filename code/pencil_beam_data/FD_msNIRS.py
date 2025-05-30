@@ -9,12 +9,12 @@ c = 2.998e+10
 c = c / n # cm/s
 
 
-def run_mcx(ua, us, g=0.85, n=1.370, distances = [15, 20, 25, 30], tend =1e-08, devf = 10000, nphoton = 1e8, source_type='laser'):
+def run_mcx(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8, light_source = 'laser'):
     
     # define structure properties
     prop = np.array([
         [0.0, 0.0, 1.0, 1.0], # air
-        [ua, us, g, n], # first layer
+        [ua, us, g, n], #
     ])
 
     # define voxel matrix properties 
@@ -30,8 +30,6 @@ def run_mcx(ua, us, g=0.85, n=1.370, distances = [15, 20, 25, 30], tend =1e-08, 
     vol[:, 0, :] = 0
     vol[:, 99, :] = 0
     
-    detpos = [[50 + d, 50, 1, 2] for d in distances]
-    
     cfg = {
           'nphoton': nphoton,
           'vol': vol,
@@ -41,22 +39,21 @@ def run_mcx(ua, us, g=0.85, n=1.370, distances = [15, 20, 25, 30], tend =1e-08, 
           'srcpos': [50, 50, 1],
           'srcdir': [0, 0, 1],  # Pointing toward z=1
           'prop': prop,
-          'detpos': detpos, 
+          'detpos': [[50+distance, 50, 1, 2]], 
           'savedetflag': 'dpxsvmw',  # Save detector ID, exit position, exit direction, partial path lengths
           'unitinmm': 1,
           'autopilot': 1,
           'debuglevel': 'DP',
+          #'tmod': mf,
     }
-    
     cfg['issaveref']=1
     cfg['issavedet']=1
     cfg['issrcfrom0']=1
     cfg['maxdetphoton']=nphoton
     cfg['seed']= 999
+    if light_source == 'iso': 
+      cfg['srctype']='nphoton'
 
-    # define source type: 
-    if source_type == 'iso': 
-        cfg['srctype']= 'isotropic'
 
     # Run the simulation
     res = pmcx.mcxlab(cfg)
@@ -66,32 +63,24 @@ def run_mcx(ua, us, g=0.85, n=1.370, distances = [15, 20, 25, 30], tend =1e-08, 
 # sum_dref_per_time = x weights/mm-1/photon
 def get_intensity_dynamic(cfg, res):
     # get mask. 
+    det_x, det_y, det_z, det_r = cfg['detpos'][0]
     nx, ny, nz, nt = res['dref'].shape
     x_grid, y_grid = np.meshgrid(np.arange(nx), np.arange(ny), indexing='ij')
+    det_mask = (x_grid - det_x)**2 + (y_grid - det_y)**2 <= det_r**2
     
-    intensity_all_detectors = []
-    
-    for det in cfg['detpos']:
-        det_x, det_y, det_z, det_r = det
-        det_mask = (x_grid - det_x)**2 + (y_grid - det_y)**2 <= det_r**2
-    
-    
-        # get intensity dynamic
-        sum_dref_per_time = []
-        # loop each t 
-        for t in range(nt):
-            dref_slice = res['dref'][:, :, 0, t]
-            sum_val = np.sum(dref_slice[det_mask])
-            sum_dref_per_time.append(sum_val)
-            
-        intensity_all_detectors.append(sum_dref_per_time)
-        
-    return intensity_all_detectors
+    # get intensity dynamic
+    sum_dref_per_time = []
+    # loop each t 
+    for t in range(res['dref'].shape[3]):
+        dref_slice = res['dref'][:, :, 0, t]
+        sum_val = np.sum(dref_slice[det_mask])
+        sum_dref_per_time.append(sum_val)
+    return sum_dref_per_time
 
 
 
 
-def mcx_simulation(ua, us, g=0.85, n=1.370, distance =  [15, 20, 25, 30], tend =1e-08, devf = 10000, nphoton = 1e8):
+def mcx_simulation(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
     """
     Wrapper function to run MCX simulation and extract time-resolved intensity.
 
@@ -110,42 +99,38 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance =  [15, 20, 25, 30], tend =
         unit (float): Time step per frame (i.e., temporal resolution)
     """
     res, cfg = run_mcx(ua, us, g, n, distance, tend, devf, nphoton)
-    intensity_d_list = get_intensity_dynamic(cfg, res)
+    intensity_d = get_intensity_dynamic(cfg, res)
     t = np.linspace(0, tend, devf)
     unit = tend / devf
-    return intensity_d_list, unit
-    
+    return intensity_d, unit
+
+# get the fft, freqs. 
+def mcx_fft(ua, us, g=0.85, n=1.370, distance = 15, tend =1e-08, devf = 10000, nphoton = 1e8):
+    intensity_d, unit = mcx_simulation(ua, us, g, n, distance, tend, devf, nphoton)
+    # adjust to weight/bin: 
+    intensity_d = np.array(intensity_d)
+    fft_result = np.fft.fft(intensity_d)
+    freqs = np.fft.fftfreq(intensity_d.shape[0], unit)
+    return fft_result, freqs
+
 
 # return uac, udc and phase from fft results.  
-def extract_freq(target_freq, TPSF_list, tend, devf):
+def extract_freq(target_freq, TPSF, tend, devf):
     t = np.linspace(0, tend, devf)
-    omega = 2 * np.pi * target_freq
-    amplitude_list = []
-    udc_list = []
-    phase_list = []
-    phase2_list = []
-    
-    for TPSF in TPSF_list:
-        TPSF = np.array(TPSF)
-        tau = np.trapz(t * TPSF, t) / np.trapz(TPSF, t)
-        
-        I_f = np.trapz(TPSF * np.exp(-1j * omega * t), t)
-        amplitude = np.abs(I_f)
-        phase = np.angle(I_f, deg=False)
-        
-        udc = np.trapz(TPSF, t)
-         # Alternative phase using tau
-        phase2 = -2 * np.pi * target_freq * tau
-        
-        if phase > 0 and phase2 < 0:
-            phase = phase - 2 * np.pi
-            
-        amplitude_list.append(amplitude)
-        udc_list.append(udc)
-        phase_list.append(phase)
-        phase2_list.append(phase2)
-        
-    return amplitude_list, udc_list, phase_list, phase2_list
+    tau = np.trapz(t * TPSF, t) / np.trapz(TPSF, t)  # Center of mass
+
+    omega = 2 * np.pi * target_freq # 2*pi*f
+    I_f = np.trapz(TPSF * np.exp(-1j * omega * t), t)  # Complex integral
+    amplitude = np.abs(I_f)
+    phase = np.angle(I_f, deg=False)
+    udc = np.trapz(TPSF, t) # U_dc
+    # new way to get phase: 
+    phase2 =  -2 * np.pi * target_freq * tau  # in radians
+    left = phase2 // np.pi
+    if phase > 0 and phase2 < 0: 
+      phase = phase - 2* np.pi
+    #print(phase - phase2)
+    return amplitude, udc, phase, phase2
 
 
 
