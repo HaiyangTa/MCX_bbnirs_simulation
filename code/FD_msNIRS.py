@@ -91,7 +91,7 @@ def get_intensity_dynamic(cfg, res):
 
 
 
-def mcx_simulation(ua, us, g=0.85, n=1.370, distance =  [15, 20, 25, 30], tend =1e-08, devf = 10000, nphoton = 1e8):
+def mcx_simulation(ua, us, g=0.85, n=1.370, distance =  [15, 20, 25, 30], tend =1e-08, devf = 10000, nphoton = 1e8, source_type = 'laser'):
     """
     Wrapper function to run MCX simulation and extract time-resolved intensity.
 
@@ -109,7 +109,7 @@ def mcx_simulation(ua, us, g=0.85, n=1.370, distance =  [15, 20, 25, 30], tend =
         intensity_d (list): Time-resolved detector intensity values
         unit (float): Time step per frame (i.e., temporal resolution)
     """
-    res, cfg = run_mcx(ua, us, g, n, distance, tend, devf, nphoton)
+    res, cfg = run_mcx(ua, us, g, n, distance, tend, devf, nphoton, source_type)
     intensity_d_list = get_intensity_dynamic(cfg, res)
     t = np.linspace(0, tend, devf)
     unit = tend / devf
